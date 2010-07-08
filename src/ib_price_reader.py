@@ -9,7 +9,7 @@ Created on Jul 5, 2010
 # Windows-related path issues with dependency modules.
 #
 import sys
-sys.path = ['G:\\jake\\software\\python26', 
+poop = ['G:\\jake\\software\\python26', 
             'G:\\jake\\software\\python26\\Lib\\idlelib', 
             'g:\\jake\\software\\python26', 
             'C:\\WINDOWS\\system32\\python26.zip', 
