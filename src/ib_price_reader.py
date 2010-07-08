@@ -9,31 +9,24 @@ Created on Jul 5, 2010
 # Windows-related path issues with dependency modules.
 #
 import sys
-poop = ['G:\\jake\\software\\python26', 
-            'G:\\jake\\software\\python26\\Lib\\idlelib', 
-            'g:\\jake\\software\\python26', 
-            'C:\\WINDOWS\\system32\\python26.zip', 
-            'G:\\jake\\software\\python26\\DLLs', 
-            'G:\\jake\\software\\python26\\lib', 
-            'G:\\jake\\software\\python26\\lib\\plat-win', 
-            'G:\\jake\\software\\python26\\lib\\lib-tk', 
-            'G:\\jake\\software\\python26\\lib\\site-packages']
+sys.path.append("G:\\jake\\software\\python26\\lib\\site-packages")
 #
 # END OF HACK
 #
 
 from ib.ext.Contract import Contract
 from ib.opt import ibConnection, message
-
-
 from datetime import datetime
-from time import sleep
-import pickle
 
 class IbPriceReader:
     
     def __init__(self, stocks, receiver, exchange='BATS', host='localhost', port=7496, client_id=0):
+        """Create a new instance.
         
+            stocks: a list of stock symbols
+            receiver: implements a accept_tick(timestamp, symbol, price) method
+            
+        """
         # get the parameters
         self.stocks     = stocks
         self.receiver   = receiver
@@ -53,14 +46,15 @@ class IbPriceReader:
         price = msg.close
             
         print timestamp, symbol, price
-        
-        self.save_data(timestamp,symbol,price)
-        
+             
         if self.receiver != None:
             self.receiver.accept_tick( timestamp, symbol, price )    
    
         
     def start(self):
+        """Start the connection and read the realtime bars for the specified 
+        tickers.
+        """
         # connection and handler
         self.connection = ibConnection(
                                        host=self.host, 
@@ -75,27 +69,19 @@ class IbPriceReader:
         
         for inx,stock in enumerate(self.stocks):
             print "Requesting:\t%d = %s" % (inx,stock)
-            
             # create the contract
             contract = Contract()
             contract.m_symbol = stock
             contract.m_secType = 'STK'
             contract.m_exchange = self.exchange
             contract.m_currency = 'USD'
-            
             self.connection.reqRealTimeBars(inx, contract, 5, 'TRADES', False)
             
-
     def stop(self):
+        """Cancel all the realtime bar subscriptions and disconnect.
+        
+        """
         for inx,stock in enumerate(self.stocks):
             print "Cancelling:\t%d = %s" % (inx,stock)
             self.connection.cancelRealTimeBars(inx)
         self.connection.disconnect()
-    
-    def save_data(self, timestamp, symbol, price):
-        if not self.hist_data.has_key(symbol):
-            self.hist_data[symbol]={'timestamps':[], 'prices':[]}
-        
-        data = self.hist_data[symbol]
-        data['timestamps'].append(timestamp)
-        data['prices'].append(price)
