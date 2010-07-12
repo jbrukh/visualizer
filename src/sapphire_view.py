@@ -5,7 +5,7 @@ Created on Jul 7, 2010
 '''
 
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('WxAgg')
 
 import numpy as np
 
@@ -44,7 +44,7 @@ class SapphireView:
         if not depersist:
             result = {}
             for symbol in symbols:
-                result[symbol] = {'timestamps':[], 'prices':[]}
+                result[symbol] = {'timestamps':[], 'prices':[], 'minutes':[], 'closes':[], 'shock_times':[], 'shocks':[] }
             return result
         else:
             try:
@@ -67,18 +67,25 @@ class SapphireView:
             # get the price data for this symbol
             store = self.price_data[symbol]
             id = self.symbols.index(symbol)
-
+            
             # get the data
             timestamps = store['timestamps']
             timestamps.append(timestamp)
             prices = store['prices']
             prices.append( np.around(price,2) )
+
+            minutes,closes=store['minutes'], store['closes']
+            # get the minute data
+            if timestamp.second == 55:   # the minute bar close has arrived
+                # this is a minute close
+                minutes.append(timestamp)
+                closes.append(price)
     
-            # save the data
-            self.persist()
+                # save the data
+                self.persist()
       
             if self.started:
-                self.plot_price_data(id,symbol,timestamps,prices)
+                self.plot_price_data(id,symbol,timestamps,prices, minutes, closes)
     
     def persist(self):
         with self.lock:
@@ -89,7 +96,7 @@ class SapphireView:
             except:
                 print "Could not persist.", sys.exc_info()[0]
     
-    def plot_price_data(self, id, symbol, timestamps, prices):
+    def plot_price_data(self, id, symbol, timestamps, prices, minutes, closes):
         #print id, symbol, timestamps, prices
         
         # get the figure and axes
@@ -99,13 +106,22 @@ class SapphireView:
         axes.clear()
         
         # plot the whole thing -- TODO: may be made more efficient?
-        axes.plot_date(timestamps, prices, '-', color='black', linewidth=.5, axes=axes)
+        lookback = 12*self.range_lookback
+        if len(timestamps)>0:
+            axes.plot_date(timestamps[-lookback:], prices[-lookback:], '-', color='black', linewidth=.5)
  
         # plot the minute bars
+        axes.plot_date(minutes[-self.range_lookback:],closes[-self.range_lookback:], '.', color='black', markersize=4)
+        if len(closes)>=self.range_lookback:
+            range_minutes = minutes[-self.range_lookback:]
+            range_closes = closes[-self.range_lookback:]
+            axes.plot_date(range_minutes, range_closes, '-', color='orange', markersize=4)
+            low,high = min(range_closes), max(range_closes)
+            axes.axhline(y=low,linewidth=1,linestyle='-.',color="#636363")
+            axes.axhline(y=high,linewidth=1,linestyle='-.',color="#636363")
         
- 
         # labeling
-        axes.set_title("%s -- %s -- $%.2f" % (symbol,timestamps[-1],prices[-1]))
+        axes.set_title("%s -- %s -- $%.2f" % (symbol,timestamps[-1].strftime("%H:%M:%S"),prices[-1]))
         axes.set_ylabel("Price")
         axes.set_xlabel("Time")
         self.fig.autofmt_xdate()
@@ -114,7 +130,7 @@ class SapphireView:
         draw()
     
     def start(self):
-        self.feed = IbPriceReader(self.symbols, self, client_id=101)
+        self.feed = IbPriceReader(self.symbols, self, client_id=100)
        
         
         self.formatter = ScalarFormatter(useOffset=False)
@@ -128,7 +144,10 @@ class SapphireView:
         for inx,symbol in enumerate(self.symbols):
             axes = self.fig.add_subplot( rows, cols, inx+1)
             axes.yaxis.set_major_formatter(self.formatter)
+            axes.yaxis.set_minor_formatter(self.formatter)
             axes.yaxis.set_major_locator(self.locator)
+            axes.yaxis.set_minor_locator(self.locator)
+            axes.ticklabel_format(useOffset=False)
             
             self.plots.append(axes)
         
@@ -155,5 +174,5 @@ class SapphireView:
         self.feed.stop()
 
 if __name__ == '__main__':
-    view = SapphireView(['MRK', 'QCOM', 'BP', 'JPM'], depersist=True)
+    view = SapphireView(['MRK', 'QCOM', 'BP', 'JPM', "WFC", "MSFT", "ABX", "ORCL", "EEM", "FXI"], depersist=True)
     view.start()

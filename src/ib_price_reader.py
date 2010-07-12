@@ -85,3 +85,14 @@ class IbPriceReader:
             print "Cancelling:\t%d = %s" % (inx,stock)
             self.connection.cancelRealTimeBars(inx)
         self.connection.disconnect()
+
+
+if __name__ == '__main__':
+    class Poop:
+        def accept_tick(self, timestamp, symbol, price):
+            print timestamp, symbol, price
+            
+    reader = IbPriceReader(["AAPL"], Poop())
+    reader.start()
+    
+    raw_input("any key")
