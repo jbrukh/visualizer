@@ -100,25 +100,58 @@ class SapphireView:
         #print id, symbol, timestamps, prices
         
         # get the figure and axes
-        #self.fig.gca()
         axes = self.plots[id]
         # clear them
         axes.clear()
         
         # plot the whole thing -- TODO: may be made more efficient?
-        lookback = 12*self.range_lookback
+        tick_lookback = 3*12*self.range_lookback
+        window_lookback = 3*self.range_lookback
+        
         if len(timestamps)>0:
-            axes.plot_date(timestamps[-lookback:], prices[-lookback:], '-', color='black', linewidth=.5)
+            # plot the ticks for 3x the range lookback period
+            ts = timestamps[-tick_lookback:]
+            px = prices[-tick_lookback:]
+            
+            # calculate range
+            low,high = np.amin(px), np.amax(px)
+            rng = high-low
+            if rng > 0:
+                low,high = low-rng*.10, high+rng*.10
+                axes.set_ylim(low,high)
+            axes.plot_date(
+                           ts, 
+                           px, 
+                           '-', 
+                           color='black', 
+                           linewidth=.5)
  
         # plot the minute bars
-        axes.plot_date(minutes[-self.range_lookback:],closes[-self.range_lookback:], '.', color='black', markersize=4)
+        axes.plot_date(
+                       minutes[-window_lookback:],
+                       closes[-window_lookback:], 
+                       '.', 
+                       color='black', 
+                       markersize=4)
+        
+        # if the full range lookback is in view...
         if len(closes)>=self.range_lookback:
+            # plot minute points
             range_minutes = minutes[-self.range_lookback:]
             range_closes = closes[-self.range_lookback:]
-            axes.plot_date(range_minutes, range_closes, '-', color='orange', markersize=4)
+            axes.plot_date(
+                           range_minutes, 
+                           range_closes, 
+                           '-', 
+                           color='orange', 
+                           markersize=4
+                           )
+            
+            # plot the spread
             low,high = min(range_closes), max(range_closes)
             axes.axhline(y=low,linewidth=1,linestyle='-.',color="#636363")
             axes.axhline(y=high,linewidth=1,linestyle='-.',color="#636363")
+        
         
         # labeling
         axes.set_title("%s -- %s -- $%.2f" % (symbol,timestamps[-1].strftime("%H:%M:%S"),prices[-1]))
@@ -153,8 +186,9 @@ class SapphireView:
         
         self.started = True
         def async_start():
-            print "Starting feed in 5 secs..."
-            sleep(5)
+            sleep_time = 7
+            print "Starting feed in %d secs..." % sleep_time
+            sleep(sleep_time)
             self.feed.start()
         thr = threading.Thread(target=async_start)
         thr.start()
@@ -174,5 +208,8 @@ class SapphireView:
         self.feed.stop()
 
 if __name__ == '__main__':
-    view = SapphireView(['MRK', 'QCOM', 'BP', 'JPM', "WFC", "MSFT", "ABX", "ORCL", "EEM", "FXI"], depersist=True)
+    view = SapphireView(['MRK', 'QCOM', 'HD', 'JPM', 
+                         'WFC', 'MSFT', 'ABX', 'ORCL', 
+                         'EEM', 'INTC', 'UNH', 'DTV'], 
+                         depersist=False)
     view.start()
